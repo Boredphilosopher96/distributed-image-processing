@@ -1,0 +1,7 @@
+service ServerCompute {
+    string delayed_execute(1:string base_path, 2:string file_name),
+
+    string execute(1: string base_path, 2:string file_name),
+}
+
+

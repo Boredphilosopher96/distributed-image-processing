@@ -1,0 +1,5 @@
+service ClientServer {
+    string submit_request(1:string source_folder, 2:bool is_random),
+
+    void ping()
+}
