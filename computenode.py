@@ -57,7 +57,7 @@ class ComputeNodeHandler:
 if __name__ == '__main__':
     handler = ComputeNodeHandler(sys.argv[1])
     processor = ServerCompute.Processor(handler)
-    transport = TSocket.TServerSocket(host='10.0.50.0', port=9090)
+    transport = TSocket.TServerSocket(host='127.0.0.1', port=9090)
     tfactory = TTransport.TBufferedTransportFactory()
     pfactory = TBinaryProtocol.TBinaryProtocolFactory()
 

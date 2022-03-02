@@ -10,11 +10,12 @@ from server_compute_interface import ServerCompute
 from timeit import default_timer as timer
 from os.path import join
 from glob import glob
+from utils import NODE_MAPPING
 
 
 class ServerHandler:
-    def __init__(self, node_mapping):
-        self.node_mapping = node_mapping
+    def __init__(self):
+        self.compute_nodes = [node for node in NODE_MAPPING.keys() if node.startswith('node')]
 
     def ping(self):
         print("ping() server")
@@ -28,7 +29,7 @@ class ServerHandler:
         return files
 
     def get_rpc_client(self, node_id):
-        transport = TSocket.TSocket(self.node_mapping[node_id], 9090)
+        transport = TSocket.TSocket(self.compute_nodes[node_id], 9090)
 
         # Buffering is critical. Raw sockets are very slow
         transport = TTransport.TBufferedTransport(transport)
@@ -45,7 +46,7 @@ class ServerHandler:
         return client
 
     def get_server_randomly(self):
-        node_id = random.choice(list(self.node_mapping.keys()))
+        node_id = random.choice(self.compute_nodes)
         return self.get_rpc_client(node_id)
 
     def submit_request(self, source_path: str, is_random: bool):
@@ -73,22 +74,13 @@ class ServerHandler:
         return str(elapsed_time)
 
 
-def get_compute_nodes_mapping():
-    node_mapping = {}
-    with open('machine.txt') as f:
-        lines = f.readlines()
-        for line in lines:
-            line = line.rstrip()
-            if line.startswith('node'):
-                node_id, ip = line.split()
-                node_mapping[node_id] = ip
-    return node_mapping
-
-
 if __name__ == '__main__':
-    handler = ServerHandler(get_compute_nodes_mapping())
+    handler = ServerHandler()
     processor = ClientServer.Processor(handler)
-    transport = TSocket.TServerSocket(host='127.0.0.1', port=9090)
+
+    server_ip = NODE_MAPPING['server']
+    transport = TSocket.TServerSocket(host=server_ip, port=9090)
+
     tfactory = TTransport.TBufferedTransportFactory()
     pfactory = TBinaryProtocol.TBinaryProtocolFactory()
 
@@ -97,8 +89,7 @@ if __name__ == '__main__':
     # You could do one of these for a multithreaded server
     # server = TServer.TThreadedServer(
     #     processor, transport, tfactory, pfactory)
-    server = TServer.TThreadPoolServer(
-        processor, transport, tfactory, pfactory)
+    server = TServer.TThreadPoolServer(processor, transport, tfactory, pfactory)
 
     print('Starting the server...')
     server.serve()
