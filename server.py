@@ -2,6 +2,11 @@ import random
 import sys
 import glob
 
+# add path of generated python module
+sys.path.append('gen-py')
+# add path of the thrift library
+sys.path.insert(0, glob.glob('./thrift-0.15.0/lib/py/build/lib*')[0])
+
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
 from thrift.transport import TSocket, TTransport
@@ -29,10 +34,6 @@ class ServerHandler:
         files = []
         for ext in ('*.png', '*.jpg'):
             files.extend([file.split("/")[-1] for file in glob(join(f"{source_path}/input_dir/", ext))])
-
-        # If there are no image files in location, raise error
-        if not files:
-            raise IncorrectExecutionException("There are no image files in the given path")
 
         return files
 
@@ -89,12 +90,11 @@ if __name__ == '__main__':
     handler = ServerHandler()
     processor = ClientServer.Processor(handler)
 
-    transport = TSocket.TServerSocket(host='10.0.40.0', port=5000)
+    transport = TSocket.TServerSocket(port=5000)
 
     tfactory = TTransport.TBufferedTransportFactory()
     pfactory = TBinaryProtocol.TBinaryProtocolFactory()
-
-    server = TServer.TThreadedServer(processor, transport, tfactory, pfactory)
+    server = TServer.TSimpleServer(processor, transport, tfactory, pfactory)
 
     print('Starting the server...')
     server.serve()
