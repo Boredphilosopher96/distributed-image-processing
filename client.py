@@ -6,7 +6,7 @@ from utils import get_base_path, NODE_MAPPING
 
 if __name__ == '__main__':
     # Make socket
-    transport = TSocket.TSocket(NODE_MAPPING['server'], 9090)
+    transport = TSocket.TSocket(NODE_MAPPING['server'], 5000)
 
     # Buffering is critical. Raw sockets are very slow
     transport = TTransport.TBufferedTransport(transport)

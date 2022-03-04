@@ -1,4 +1,6 @@
 import random
+import sys
+import glob
 
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
@@ -10,26 +12,32 @@ from server_compute_interface import ServerCompute
 from timeit import default_timer as timer
 from os.path import join
 from glob import glob
-from utils import NODE_MAPPING
+from utils import NODE_MAPPING, IncorrectExecutionException
 
 
 class ServerHandler:
     def __init__(self):
+        # Get the ids of only compute nodes
         self.compute_nodes = [node for node in NODE_MAPPING.keys() if node.startswith('node')]
 
     def ping(self):
         print("ping() server")
 
     def get_all_eligible_files(self, source_path: str):
+        # Function to get only image files from the input_dir folder
         # referenced from https://stackoverflow.com/a/26403164
         files = []
         for ext in ('*.png', '*.jpg'):
             files.extend([file.split("/")[-1] for file in glob(join(f"{source_path}/input_dir/", ext))])
 
+        # If there are no image files in location, raise error
+        if not files:
+            raise IncorrectExecutionException("There are no image files in the given path")
+
         return files
 
     def get_rpc_client(self, node_id):
-        transport = TSocket.TSocket(self.compute_nodes[node_id], 9090)
+        transport = TSocket.TSocket(NODE_MAPPING[node_id], 5000)
 
         # Buffering is critical. Raw sockets are very slow
         transport = TTransport.TBufferedTransport(transport)
@@ -46,6 +54,7 @@ class ServerHandler:
         return client
 
     def get_server_randomly(self):
+        # Select a node_id randomly
         node_id = random.choice(self.compute_nodes)
         return self.get_rpc_client(node_id)
 
@@ -60,8 +69,10 @@ class ServerHandler:
         if is_random:
             for file in eligible_files:
                 was_rejected = True
+                # If the previous file was rejected, try till some computenode accepts to process the file
                 while was_rejected:
-                    status = self.get_server_randomly().execute(source_path, file)
+                    random_server = self.get_server_randomly()
+                    status = random_server.execute(source_path, file)
                     was_rejected = "Rejected" in status
         else:
             for file in eligible_files:
@@ -78,18 +89,12 @@ if __name__ == '__main__':
     handler = ServerHandler()
     processor = ClientServer.Processor(handler)
 
-    server_ip = NODE_MAPPING['server']
-    transport = TSocket.TServerSocket(host=server_ip, port=9090)
+    transport = TSocket.TServerSocket(host='10.0.40.0', port=5000)
 
     tfactory = TTransport.TBufferedTransportFactory()
     pfactory = TBinaryProtocol.TBinaryProtocolFactory()
 
-    # server = TServer.TSimpleServer(processor, transport, tfactory, pfactory)
-
-    # You could do one of these for a multithreaded server
-    # server = TServer.TThreadedServer(
-    #     processor, transport, tfactory, pfactory)
-    server = TServer.TThreadPoolServer(processor, transport, tfactory, pfactory)
+    server = TServer.TThreadedServer(processor, transport, tfactory, pfactory)
 
     print('Starting the server...')
     server.serve()

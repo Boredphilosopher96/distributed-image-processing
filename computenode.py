@@ -1,4 +1,5 @@
 import sys
+import glob
 import time
 
 from thrift.protocol import TBinaryProtocol
@@ -8,11 +9,6 @@ import cv2 as cv
 import numpy as np
 from server_compute_interface import ServerCompute
 from random import choices
-
-max_lowThreshold = 100
-window_name = 'Edge Map'
-ratio = 3
-kernel_size = 3
 
 
 class ComputeNodeHandler:
@@ -39,33 +35,33 @@ class ComputeNodeHandler:
         return "Success"
 
     def is_delayed_or_rejected(self):
+        # Randomly select delay based on load probability
         return choices([1, 0], [self.load_probability, 1.0 - self.load_probability])[0]
 
     def execute(self, base_path, file_name):
         if self.is_delayed_or_rejected():
             print("Rejecting image: " + file_name)
             return "Rejected"
-        return self.process_image(base_path, file_name)
+        else:
+            print("Image not rejected. Checking if image processing will be delayed")
+            return self.delayed_execute(base_path, file_name)
 
     def delayed_execute(self, base_path, file_name):
         if self.is_delayed_or_rejected():
             print("Delaying image processing: " + file_name)
             time.sleep(3)
+        print("Image processing")
         return self.process_image(base_path, file_name)
 
 
 if __name__ == '__main__':
+    # Starting a server
     handler = ComputeNodeHandler(sys.argv[1])
     processor = ServerCompute.Processor(handler)
-    transport = TSocket.TServerSocket(host='127.0.0.1', port=9090)
+    transport = TSocket.TServerSocket(host='10.0.20.0', port=5000)
     tfactory = TTransport.TBufferedTransportFactory()
     pfactory = TBinaryProtocol.TBinaryProtocolFactory()
 
-    # server = TServer.TSimpleServer(processor, transport, tfactory, pfactory)
-
-    # You could do one of these for a multithreaded server
-    # server = TServer.TThreadedServer(
-    #     processor, transport, tfactory, pfactory)
     server = TServer.TThreadPoolServer(
         processor, transport, tfactory, pfactory)
 
